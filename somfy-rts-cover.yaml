@@ -22,6 +22,25 @@
 #   repeated partial moves the same way IO's local estimate can - the
 #   difference is IO's real motor still lands exactly on target regardless
 #   (confirmed via passive 2W read-back), RTS has no way to confirm that.
+#
+# `invert` ("OFF"/"ON") swaps which physical UP/DOWN command actually gets
+# sent for Open/Close, for an installation where this bridge's own
+# Open=UP/Close=DOWN convention comes out physically backwards from Home
+# Assistant's (e.g. an awning where Open retracts it and Close extends it -
+# same reasoning as the IO bridge's own Invert Direction switch, GitHub
+# issue #3 there). Motors have their own native calibration-based rotation
+# flip (see README's calibration section) - that fixes a genuinely
+# backwards-wired/installed motor, not this: a correctly-installed motor
+# that simply disagrees with HA's own "open" convention for its device
+# type shouldn't have its real movement reversed just to fix a labeling
+# mismatch, hence a separate software-level switch. `${cover_id}_position`
+# itself never needs any inversion - it is a purely local estimate with no
+# real motor feedback to begin with (RTS is one-way), so it already always
+# reads however HA expects; only the wire command actually transmitted
+# needs to flip. Used directly as `restore_mode: RESTORE_DEFAULT_${invert}`
+# below - a first-boot seed only, not a hard lock, the same as IO's own
+# invert default: once toggled from Home Assistant, the persisted value
+# wins over this YAML default on every later boot.
 substitutions:
   cover_id: "changeme"
   cover_name: "Change Me"
@@ -30,6 +49,7 @@ substitutions:
   travel_time_open: "25"
   travel_time_close: "25"
   retry_delay: "3s"
+  invert: "OFF"
 
 somfy:
   - address: ${remote_address}
@@ -120,6 +140,16 @@ switch:
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+  # On = swap which physical UP/DOWN command gets sent for Open/Close - see
+  # the substitutions: block's own comment above for the full picture.
+  - platform: template
+    name: "Invert Direction"
+    id: ${cover_id}_invert_switch
+    device_id: ${cover_id}_device
+    icon: mdi:swap-vertical
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_${invert}
 
 select:
   - platform: template
@@ -174,7 +204,16 @@ cover:
     lambda: |-
       return id(${cover_id}_position);
     open_action:
+      # The actual physical command sent (and which retry script gets
+      # armed for it) swaps when Invert Direction is on - see the
+      # substitutions: block's own comment above. Folded into the lambda
+      # (rather than a separate somfy.send_command: action, which can only
+      # take a fixed command: enum) since the direction has to be computed
+      # at runtime - same reasoning as position_action's own Timed branch
+      # below, which already calls send_command() directly for the same
+      # reason.
       - lambda: |-
+          bool inverted = id(${cover_id}_invert_switch).state;
           if (std::string(id(${cover_id}_mode).current_option()) == "Timed") {
             id(${cover_id}_move_start_position) = id(${cover_id}_position);
             id(${cover_id}_move_start_ms) = millis();
@@ -185,14 +224,18 @@ cover:
           } else {
             id(${cover_id}_position) = 1.0f;
           }
-          id(${cover_id}_retry_close).stop();
-          if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_open).execute();
-      - somfy.send_command:
-          id: ${cover_id}_remote
-          command: UP
-          repeat: 1
+          if (inverted) {
+            id(${cover_id}_retry_open).stop();
+            if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_close).execute();
+            id(${cover_id}_remote)->send_command(somfy::SOMFY_DOWN, 1);
+          } else {
+            id(${cover_id}_retry_close).stop();
+            if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_open).execute();
+            id(${cover_id}_remote)->send_command(somfy::SOMFY_UP, 1);
+          }
     close_action:
       - lambda: |-
+          bool inverted = id(${cover_id}_invert_switch).state;
           if (std::string(id(${cover_id}_mode).current_option()) == "Timed") {
             id(${cover_id}_move_start_position) = id(${cover_id}_position);
             id(${cover_id}_move_start_ms) = millis();
@@ -203,12 +246,15 @@ cover:
           } else {
             id(${cover_id}_position) = 0.0f;
           }
-          id(${cover_id}_retry_open).stop();
-          if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_close).execute();
-      - somfy.send_command:
-          id: ${cover_id}_remote
-          command: DOWN
-          repeat: 1
+          if (inverted) {
+            id(${cover_id}_retry_close).stop();
+            if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_open).execute();
+            id(${cover_id}_remote)->send_command(somfy::SOMFY_UP, 1);
+          } else {
+            id(${cover_id}_retry_open).stop();
+            if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_close).execute();
+            id(${cover_id}_remote)->send_command(somfy::SOMFY_DOWN, 1);
+          }
     # Somfy's MY button is dual-purpose on real remotes too: stops in place if
     # the shade is moving, or goes to the favorite preset if it's already
     # idle - sent unconditionally either way, matching real remote behavior.
@@ -263,7 +309,9 @@ cover:
             id(${cover_id}_move_direction) = dir;
             id(${cover_id}_cover)->current_operation = dir > 0 ? cover::COVER_OPERATION_OPENING : cover::COVER_OPERATION_CLOSING;
             id(${cover_id}_cover)->publish_state();
-            id(${cover_id}_remote)->send_command(dir > 0 ? somfy::SOMFY_UP : somfy::SOMFY_DOWN, 1);
+            bool inverted = id(${cover_id}_invert_switch).state;
+            bool send_up = inverted ? (dir < 0) : (dir > 0);
+            id(${cover_id}_remote)->send_command(send_up ? somfy::SOMFY_UP : somfy::SOMFY_DOWN, 1);
           } else {
             id(${cover_id}_remote)->send_command(somfy::SOMFY_MY, 1);
             id(${cover_id}_position) = 0.5f;

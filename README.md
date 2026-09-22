@@ -154,7 +154,7 @@ script:
 
 **After either path, before the motor is usable with this bridge**:
 1. Make sure you have one working physical remote paired (per whichever path above applied) and use it to program travel limits - this bridge has no travel-limit/calibration feature of its own.
-2. Check rotation direction while in calibration mode: long-press UP and DOWN together to enter it, then press and hold UP or DOWN to see which way the motor actually turns. If reversed, press **MY for 2 seconds** to flip it.
+2. Check rotation direction while in calibration mode: long-press UP and DOWN together to enter it, then press and hold UP or DOWN to see which way the motor actually turns. If reversed, press **MY for 2 seconds** to flip it. This fixes a genuinely backwards-wired/installed motor - if the motor already turns the correct way but Home Assistant's own Open/Close still come out swapped, that's a different problem, see [Direction inversion](#direction-inversion) below instead.
 3. Only after travel limits are calibrated, add this bridge as an additional control via its own Program button (see [Pairing](#pairing-and-unpairing-a-cover-to-its-motor) above).
 4. If TaHoma or another box was previously used to control this motor, re-add it through its normal app flow (same PROG-press ceremony as pairing any other remote).
 
@@ -174,6 +174,12 @@ Each cover has a **`Retry Weak Signal Commands`** switch (off by default, per co
 
 Opt-in rather than a blanket default since it doubles a cover's RF traffic on every Open/Close - only worth enabling for shutters that actually show the problem (motor doesn't respond to every command).
 
+## Direction inversion
+
+Some installations have Open/Close come out physically backwards from Home Assistant's own convention - an awning where `Open` retracts it and `Close` extends it, when HA's own convention is that an awning is open when extended. This is different from the rotation-direction problem covered under [Factory-resetting a motor](#factory-resetting-a-motor-double-power-cut) above: that one is a genuinely backwards-wired/installed motor (fixed by the motor's own calibration-mode direction flip), this one is a correctly-installed motor that simply disagrees with HA's own labeling convention for its device type. Flipping the motor's real rotation would fix the label at the cost of making it move the wrong physical direction - not what you want.
+
+Each cover has an **Invert Direction** switch (config entity) for exactly this - on swaps which physical `UP`/`DOWN` command actually gets sent for Open/Close. Starts from the `invert` YAML substitution (default `"OFF"`) on first-ever boot; once toggled from Home Assistant, the choice persists on the device and the YAML default no longer applies, same mechanism as [Retrying weak-signal commands](#retrying-weak-signal-commands)'s own switch. `My`/`Stop` are unaffected either way - both are direction-agnostic commands, matching the physical remote's own MY button behavior. The `Timed` mode position estimate is also unaffected - it's a purely local estimate with no real motor feedback to begin with (RTS is one-way), so it already always reads however Home Assistant expects regardless of which physical command was actually sent.
+
 ## How it works
 
 - `sx127x` (ESPHome core) puts the SX1276 into raw OOK mode at 433.42MHz (Somfy's exact carrier, not the 433.92MHz ISM default).
@@ -184,7 +190,7 @@ Opt-in rather than a blanket default since it doubles a cover's RF traffic on ev
 ## Files
 
 - `somfy-rts-bridge.yaml`: the device config (radio setup, Wi-Fi/API/OTA, the OLED display, `bluetooth_proxy`, diagnostic entities (WiFi Signal, Uptime, Loop Time, Restart Reason, Restart), configuration entities (Display, Display Brightness, Display Page Interval), a Debug Logging control switch, and one `packages:` entry per physical cover).
-- `somfy-rts-cover.yaml`: reusable package template (virtual remote, Program button, My button, Mode select, Travel Time Open/Close numbers, Retry Weak Signal Commands switch, and the cover logic above), instantiated per cover via substitution variables (`cover_id`, `cover_name`, `remote_address`, `device_class`, `travel_time_open`, `travel_time_close`, `retry_delay` - see [Retrying weak-signal commands](#retrying-weak-signal-commands)).
+- `somfy-rts-cover.yaml`: reusable package template (virtual remote, Program button, My button, Mode select, Travel Time Open/Close numbers, Retry Weak Signal Commands switch, Invert Direction switch, and the cover logic above), instantiated per cover via substitution variables (`cover_id`, `cover_name`, `remote_address`, `device_class`, `travel_time_open`, `travel_time_close`, `retry_delay` - see [Retrying weak-signal commands](#retrying-weak-signal-commands), `invert` - see [Direction inversion](#direction-inversion)).
 
 ## OLED display
 
