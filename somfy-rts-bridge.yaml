@@ -111,7 +111,7 @@ api:
 
 ota:
   - platform: esphome
-    password: !secret rts_bridge_ota_password
+    encryption:
 
 # level is the compile-time ceiling (VERY_VERBOSE keeps full protocol-decode
 # detail available); initial_level is what actually prints after boot, kept

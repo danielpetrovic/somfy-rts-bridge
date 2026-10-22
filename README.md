@@ -45,14 +45,13 @@ Install it in Home Assistant first: Settings → Apps → search "ESPHome" → I
 
 1. **Hardware**: LilyGO TTGO T3 LoRa32 **433MHz** V1.6.1 - nothing else needed, the onboard radio and its pin wiring (DIO2→GPIO32) are already correct for this exact board revision.
 2. **Place this bridge's files** - `somfy-rts-bridge.yaml` and `somfy-rts-cover.yaml` - under `/config/esphome/` on your Home Assistant instance. Any app that lets you browse/edit files under `/config` works for this - Studio Code Server, File Editor, or a Samba/SSH share to your PC are all fine.
-3. **Secrets**: add `wifi_ssid`, `wifi_password`, `rts_bridge_api_key`, and `rts_bridge_ota_password` to `secrets.yaml` under `/config/esphome/`. Two ways to get the values:
+3. **Secrets**: add `wifi_ssid`, `wifi_password`, and `rts_bridge_api_key` to `secrets.yaml` under `/config/esphome/`. OTA updates use this same key (`ota: encryption:` with no key of its own inherits the `api:` one) rather than a separate password - no extra secret needed for that. Two ways to get the values:
 
    #### Normal flow (recommended)
 
    Entirely inside the ESPHome app, no terminal needed:
    - Open the ESPHome app → the "⋮" (three-dot) menu, top right → **Secrets**. Edits `secrets.yaml` directly inside the app, creating it if it doesn't exist yet.
    - For `rts_bridge_api_key` (a base64-encoded 32-byte value): ESPHome's own site has a generator built into its docs, entirely client-side (nothing sent anywhere) - open [esphome.io/components/api](https://esphome.io/components/api/#configuration-variables), find the encryption key generator, and use its **Copy** button.
-   - For `rts_bridge_ota_password`: no format requirement, just needs to exist - any password works, typed directly into the Secrets editor. For a random one instead of hand-picked, click **Regenerate** then **Copy** on that same generator page a second time.
 
    #### Advanced flow
 
@@ -62,7 +61,6 @@ Install it in Home Assistant first: Settings → Apps → search "ESPHome" → I
    wifi_ssid: "your_wifi_name"
    wifi_password: "your_wifi_password"
    rts_bridge_api_key: "base64-encoded-32-byte-key"      # openssl rand -base64 32
-   rts_bridge_ota_password: "some-password"              # openssl rand -hex 16
    ```
 4. **Add an area + device entry** for each physical cover under `esphome:` in `somfy-rts-bridge.yaml` - this is what makes the cover show up as its own HA device (matching Overkiz's per-shade/curtain granularity) instead of bunched onto the hub:
    ```yaml
