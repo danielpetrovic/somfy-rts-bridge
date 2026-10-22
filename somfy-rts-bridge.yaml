@@ -6,7 +6,7 @@ esphome:
   friendly_name: Somfy RTS Bridge
   project:
     name: "danielpetrovic.Somfy RTS Bridge"
-    version: "1.0.0"
+    version: "1.0.1"
   # Sub-devices: each cover shows up as its own HA device (matching Overkiz's
   # per-shade/curtain granularity) instead of all bundled under the physical
   # board. Anything NOT assigned a device_id (OLED, Wi-Fi/IP sensor) stays on
@@ -164,12 +164,15 @@ remote_transmitter:
     - lambda: 'id(tx_id)->digital_write(true);'
     - sx127x.set_mode_rx: sx127x_id
 
+# Vendored in-repo (components/somfy_rts/) rather than pulled from
+# swoboda1337/somfy-esphome - that repo had gone stale (no commits in
+# 7+ months) and broke against ESPHome 2026.10.0's own remote_base
+# listener-registration change, see components/somfy_rts/__init__.py's
+# own comment for the fix. refresh: 0s matches the IO bridge's own
+# convention while this repo is under active development.
 external_components:
-  - source:
-      type: git
-      url: https://github.com/swoboda1337/somfy-esphome
-      ref: main
-    refresh: 5min
+  - source: github://danielpetrovic/somfy-rts-bridge
+    refresh: 0s
 
 # One package instance per physical RTS cover, see somfy-rts-cover.yaml for
 # the shared logic (0%=DOWN, 50%=MY, 100%=UP, no time-based estimation).

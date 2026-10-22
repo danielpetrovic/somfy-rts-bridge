@@ -184,13 +184,14 @@ Each cover has an **Invert Direction** switch (config entity) for exactly this -
 
 - `sx127x` (ESPHome core) puts the SX1276 into raw OOK mode at 433.42MHz (Somfy's exact carrier, not the 433.92MHz ISM default).
 - `remote_transmitter`/`remote_receiver` (ESPHome core) bit-bang the OOK data through the shared GPIO32/DIO2 pin.
-- [`swoboda1337/somfy-esphome`](https://github.com/swoboda1337/somfy-esphome) (external component) implements the actual Somfy RTS protocol (rolling codes, frame encoding) on top of that radio. Ported from [`Legion2/Somfy_Remote_Lib`](https://github.com/Legion2/Somfy_Remote_Lib).
+- `components/somfy_rts/` (vendored in this repo, see [Credits & Attribution](#credits--attribution)) implements the actual Somfy RTS protocol (rolling codes, frame encoding) on top of that radio.
 - Each cover is a `template` cover - see [Modes](#modes) above for the two position models it can switch between.
 
 ## Files
 
 - `somfy-rts-bridge.yaml`: the device config (radio setup, Wi-Fi/API/OTA, the OLED display, `bluetooth_proxy`, diagnostic entities (WiFi Signal, Uptime, Loop Time, Restart Reason, Restart), configuration entities (Display, Display Brightness, Display Page Interval), a Debug Logging control switch, and one `packages:` entry per physical cover).
 - `somfy-rts-cover.yaml`: reusable package template (virtual remote, Program button, My button, Mode select, Travel Time Open/Close numbers, Retry Weak Signal Commands switch, Invert Direction switch, and the cover logic above), instantiated per cover via substitution variables (`cover_id`, `cover_name`, `remote_address`, `device_class`, `travel_time_open`, `travel_time_close`, `retry_delay` - see [Retrying weak-signal commands](#retrying-weak-signal-commands), `invert` - see [Direction inversion](#direction-inversion)).
+- `components/somfy_rts/`: this repo's own `external_component` - fetched automatically via `external_components: type: git` in `somfy-rts-bridge.yaml` (same mechanism as the IO bridge's own `components/iohc/`), no manual copying needed. Vendored from `swoboda1337/somfy-esphome` - see [Credits & Attribution](#credits--attribution) for why and what was fixed.
 
 ## OLED display
 
@@ -206,7 +207,7 @@ Tested and working on the LilyGO TTGO T3 LoRa32 **433MHz** V1.6.1 specifically. 
 
 Not a from-scratch reimplementation - built on other people's protocol reverse-engineering and radio-level work, adapted into an ESPHome component.
 
-- [`swoboda1337/somfy-esphome`](https://github.com/swoboda1337/somfy-esphome) (external component) implements the actual Somfy RTS protocol (rolling codes, frame encoding) on top of ESPHome's own core `sx127x`/`remote_transmitter`/`remote_receiver` components.
+- The actual Somfy RTS protocol (rolling codes, frame encoding), on top of ESPHome's own core `sx127x`/`remote_transmitter`/`remote_receiver` components, is ported from [`swoboda1337/somfy-esphome`](https://github.com/swoboda1337/somfy-esphome) (Apache-2.0). Vendored into `components/somfy_rts/` (not kept as a live `external_components:` dependency) since that repo had gone stale (no commits in 7+ months) and broke against ESPHome 2026.10.0's own `remote_base` listener-registration change - see the comment at the top of `somfy.h`/`__init__.py` for exactly what was fixed.
 - That component is itself ported from [`Legion2/Somfy_Remote_Lib`](https://github.com/Legion2/Somfy_Remote_Lib).
 
 ## License

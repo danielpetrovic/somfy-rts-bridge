@@ -51,7 +51,7 @@ substitutions:
   retry_delay: "3s"
   invert: "OFF"
 
-somfy:
+somfy_rts:
   - address: ${remote_address}
     id: ${cover_id}_remote
 
@@ -92,7 +92,7 @@ script:
           tag: "retry"
           level: INFO
           format: "${cover_name}: resending Open (retry, no other command in ${retry_delay})"
-      - lambda: id(${cover_id}_remote)->send_command(somfy::SOMFY_UP, 1);
+      - lambda: id(${cover_id}_remote)->send_command(somfy_rts::SOMFY_UP, 1);
   - id: ${cover_id}_retry_close
     mode: restart
     then:
@@ -101,7 +101,7 @@ script:
           tag: "retry"
           level: INFO
           format: "${cover_name}: resending Close (retry, no other command in ${retry_delay})"
-      - lambda: id(${cover_id}_remote)->send_command(somfy::SOMFY_DOWN, 1);
+      - lambda: id(${cover_id}_remote)->send_command(somfy_rts::SOMFY_DOWN, 1);
 
 button:
   - platform: template
@@ -112,7 +112,7 @@ button:
     name: "Program"
     device_id: ${cover_id}_device
     on_press:
-      - somfy.send_command:
+      - somfy_rts.send_command:
           id: ${cover_id}_remote
           command: PROG
           repeat: 1
@@ -124,7 +124,7 @@ button:
     name: "My"
     device_id: ${cover_id}_device
     on_press:
-      - somfy.send_command:
+      - somfy_rts.send_command:
           id: ${cover_id}_remote
           command: MY
           repeat: 1
@@ -207,7 +207,7 @@ cover:
       # The actual physical command sent (and which retry script gets
       # armed for it) swaps when Invert Direction is on - see the
       # substitutions: block's own comment above. Folded into the lambda
-      # (rather than a separate somfy.send_command: action, which can only
+      # (rather than a separate somfy_rts.send_command: action, which can only
       # take a fixed command: enum) since the direction has to be computed
       # at runtime - same reasoning as position_action's own Timed branch
       # below, which already calls send_command() directly for the same
@@ -227,11 +227,11 @@ cover:
           if (inverted) {
             id(${cover_id}_retry_open).stop();
             if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_close).execute();
-            id(${cover_id}_remote)->send_command(somfy::SOMFY_DOWN, 1);
+            id(${cover_id}_remote)->send_command(somfy_rts::SOMFY_DOWN, 1);
           } else {
             id(${cover_id}_retry_close).stop();
             if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_open).execute();
-            id(${cover_id}_remote)->send_command(somfy::SOMFY_UP, 1);
+            id(${cover_id}_remote)->send_command(somfy_rts::SOMFY_UP, 1);
           }
     close_action:
       - lambda: |-
@@ -249,11 +249,11 @@ cover:
           if (inverted) {
             id(${cover_id}_retry_close).stop();
             if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_open).execute();
-            id(${cover_id}_remote)->send_command(somfy::SOMFY_UP, 1);
+            id(${cover_id}_remote)->send_command(somfy_rts::SOMFY_UP, 1);
           } else {
             id(${cover_id}_retry_open).stop();
             if (id(${cover_id}_retry_switch).state) id(${cover_id}_retry_close).execute();
-            id(${cover_id}_remote)->send_command(somfy::SOMFY_DOWN, 1);
+            id(${cover_id}_remote)->send_command(somfy_rts::SOMFY_DOWN, 1);
           }
     # Somfy's MY button is dual-purpose on real remotes too: stops in place if
     # the shade is moving, or goes to the favorite preset if it's already
@@ -284,12 +284,12 @@ cover:
           }
           id(${cover_id}_retry_open).stop();
           id(${cover_id}_retry_close).stop();
-      - somfy.send_command:
+      - somfy_rts.send_command:
           id: ${cover_id}_remote
           command: MY
           repeat: 1
     # "My" mode: any target strictly between 0 and 1 maps to MY, called
-    # directly via the component method, not the somfy.send_command YAML
+    # directly via the component method, not the somfy_rts.send_command YAML
     # action, that action is broken when used inside a templated trigger
     # (position_action's `pos` makes this Ts=float): SomfySendCommandAction's
     # play(Ts...) no longer matches core's Action<Ts...>::play(const Ts&...),
@@ -311,9 +311,9 @@ cover:
             id(${cover_id}_cover)->publish_state();
             bool inverted = id(${cover_id}_invert_switch).state;
             bool send_up = inverted ? (dir < 0) : (dir > 0);
-            id(${cover_id}_remote)->send_command(send_up ? somfy::SOMFY_UP : somfy::SOMFY_DOWN, 1);
+            id(${cover_id}_remote)->send_command(send_up ? somfy_rts::SOMFY_UP : somfy_rts::SOMFY_DOWN, 1);
           } else {
-            id(${cover_id}_remote)->send_command(somfy::SOMFY_MY, 1);
+            id(${cover_id}_remote)->send_command(somfy_rts::SOMFY_MY, 1);
             id(${cover_id}_position) = 0.5f;
           }
           id(${cover_id}_retry_open).stop();
@@ -349,7 +349,7 @@ interval:
           bool reached_limit = pos <= 0.0f || pos >= 1.0f;
 
           if (reached_target) {
-            id(${cover_id}_remote)->send_command(somfy::SOMFY_MY, 1);
+            id(${cover_id}_remote)->send_command(somfy_rts::SOMFY_MY, 1);
             id(${cover_id}_move_direction) = 0;
             id(${cover_id}_target_position) = -1.0f;
             id(${cover_id}_cover)->current_operation = cover::COVER_OPERATION_IDLE;
