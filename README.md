@@ -35,6 +35,8 @@ The examples below use `curtain`/`shade` - substitute whichever matches your own
 
 ## Before you start
 
+**Requires ESPHome 2026.11.0 or newer.** ESPHome 2026.11 made the `relation` option mandatory for every entry under `esphome: devices:`, and older versions reject it, so the YAML in this repository only builds on 2026.11.0 or newer (the configuration stops with a clear version message otherwise). On older ESPHome, use the files from release `v1.0.1` instead.
+
 This is an **ESPHome** project, driven from Home Assistant's own **ESPHome app** (called an "add-on" before Home Assistant 2026.2 renamed these to "apps" - you'll still see the older name in older screenshots/guides), not a separate program you install on your PC. ESPHome itself is maintained by Nabu Casa, the same company behind Home Assistant, which is why it integrates this smoothly (auto-discovery, native API, OTA updates from within Home Assistant).
 
 Install it in Home Assistant first: Settings → Apps → search "ESPHome" → Install → Start (turning on "Show in sidebar" is convenient). This app is what compiles the `.yaml` files described in Setup below into firmware and flashes it onto the board - no PlatformIO, Arduino IDE, or separate `esphome` command-line install needed on your own computer.
@@ -72,6 +74,7 @@ Install it in Home Assistant first: Settings → Apps → search "ESPHome" → I
        - id: my_new_cover_device
          name: "My Room Curtain" # include the room name here - HA's own Area-prefix-to-entity_id feature isn't reliable enough to depend on for display naming
          area_id: my_room_area
+         relation: via
    ```
 5. **Add a cover entry** for each physical cover under `packages:` in `somfy-rts-bridge.yaml` (`cover_id` + `_device` must match the device `id` above):
    ```yaml
